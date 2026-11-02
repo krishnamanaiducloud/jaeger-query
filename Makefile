@@ -1,0 +1,18 @@
+.PHONY: build smoke scan builder push all
+IMAGENAME=mohankrishna999/jaeger-query
+VERSION=2.22.0-patched
+PLATFORMS=linux/amd64,linux/arm64
+BUILDER=patched-multiarch
+build:
+	docker buildx build --load --platform linux/amd64 -t ${IMAGENAME}:${VERSION} .
+smoke: build
+	docker run --rm ${IMAGENAME}:${VERSION} version
+scan: build
+	trivy image --scanners vuln --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --exit-code 1 ${IMAGENAME}:${VERSION}
+	grype ${IMAGENAME}:${VERSION} --fail-on negligible
+builder:
+	docker buildx inspect ${BUILDER} >/dev/null 2>&1 || docker buildx create --name ${BUILDER} --driver docker-container >/dev/null
+push: builder
+	docker buildx build --builder ${BUILDER} --platform ${PLATFORMS} --sbom=true --provenance=mode=max -t ${IMAGENAME}:${VERSION} -t ${IMAGENAME}:latest --push .
+all: smoke scan push
+

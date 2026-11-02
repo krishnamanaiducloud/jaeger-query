@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger-query
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jaeger-query
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jaeger-query
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: jaeger-query
+          image: docker.io/mohankrishna999/jaeger-query:2.22.0-patched
+          env:
+            - name: ES_SERVER_URL
+              value: http://elasticsearch:9200
+          ports:
+            - name: http
+              containerPort: 16686
+            - name: health
+              containerPort: 13133
+            - name: metrics
+              containerPort: 8888
+          readinessProbe:
+            httpGet:
+              path: /
+              port: health
+          livenessProbe:
+            httpGet:
+              path: /
+              port: health
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
