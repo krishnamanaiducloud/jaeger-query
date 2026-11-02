@@ -3,8 +3,8 @@ ARG BUILD_IMAGE=cgr.dev/chainguard/wolfi-base:latest@sha256:fd50bd0cdeb808cf4f45
 ARG RUNTIME_IMAGE=cgr.dev/chainguard/static:latest@sha256:fc42af33e643f20d08baf03cddcc1c02ba57052dfb02edb0d79f3fc47bcea8d9
 
 FROM --platform=$BUILDPLATFORM ${BUILD_IMAGE} AS build
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 ARG JAEGER_VERSION=2.22.0
 ARG JAEGER_COMMIT=462bb49fcff9af4be9556bf0206d07f5171bd8d7
 
