@@ -2,9 +2,7 @@
 ARG BUILD_IMAGE=cgr.dev/chainguard/wolfi-base:latest@sha256:fd50bd0cdeb808cf4f45c9c9189e0cc7f7fcc27195d69abd6622c80527e7e021
 ARG RUNTIME_IMAGE=cgr.dev/chainguard/static:latest@sha256:fc42af33e643f20d08baf03cddcc1c02ba57052dfb02edb0d79f3fc47bcea8d9
 
-FROM --platform=$BUILDPLATFORM ${BUILD_IMAGE} AS build
-ARG TARGETOS
-ARG TARGETARCH
+FROM --platform=$BUILDPLATFORM ${BUILD_IMAGE} AS source
 ARG JAEGER_VERSION=2.22.0
 ARG JAEGER_COMMIT=462bb49fcff9af4be9556bf0206d07f5171bd8d7
 
@@ -14,13 +12,20 @@ WORKDIR /src
 RUN git -c advice.detachedHead=false clone --quiet --depth 1 --recurse-submodules --shallow-submodules \
       --branch "v${JAEGER_VERSION}" https://github.com/jaegertracing/jaeger.git . \
     && test "$(git rev-parse HEAD)" = "${JAEGER_COMMIT}"
+
+FROM source AS ui
+RUN make build-ui
+
+FROM ui AS build
+ARG TARGETOS
+ARG TARGETARCH
+ARG JAEGER_VERSION=2.22.0
+ARG JAEGER_COMMIT=462bb49fcff9af4be9556bf0206d07f5171bd8d7
 RUN --mount=type=cache,id=jaeger-go-mod,target=/root/go/pkg/mod,sharing=locked \
     --mount=type=cache,id=jaeger-go-build,target=/root/.cache/go-build,sharing=locked \
-    make build-ui \
-    && GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false \
+    GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false \
       -ldflags "-s -w -buildid= -X github.com/jaegertracing/jaeger/pkg/version.commitSHA=${JAEGER_COMMIT} -X github.com/jaegertracing/jaeger/pkg/version.latestVersion=v${JAEGER_VERSION}" \
-      -o /out/jaeger ./cmd/jaeger \
-    && /out/jaeger version
+      -o /out/jaeger ./cmd/jaeger
 
 FROM ${RUNTIME_IMAGE}
 ARG JAEGER_VERSION=2.22.0
