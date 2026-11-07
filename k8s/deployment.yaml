@@ -19,7 +19,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: jaeger-query
-          image: docker.io/mohankrishna999/jaeger-query:2.22.0-patched
+          image: docker.io/mohankrishna999/jaeger-query:2.23.0-patched
           env:
             - name: ES_SERVER_URL
               value: http://elasticsearch:9200

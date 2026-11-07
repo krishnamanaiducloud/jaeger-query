@@ -16,9 +16,12 @@ service:
                 host: 0.0.0.0
                 port: 8888
 extensions:
+  # Without an explicit endpoint Jaeger 2.23 serves the health check on localhost only, where
+  # the kubelet probes cannot reach it.
   healthcheckv2:
     use_v2: true
     http:
+      endpoint: 0.0.0.0:13133
   jaeger_query:
     storage:
       traces: primary
@@ -28,7 +31,8 @@ extensions:
     backends:
       primary:
         elasticsearch:
-          server_urls: [${env:ES_SERVER_URL:-http://elasticsearch:9200}]
+          server_urls:
+            - ${env:ES_SERVER_URL:-http://elasticsearch:9200}
 receivers:
   nop:
 processors:
