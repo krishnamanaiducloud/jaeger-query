@@ -1,6 +1,6 @@
 .PHONY: build smoke scan builder push all
 IMAGENAME=mohankrishna999/jaeger-query
-VERSION=2.23.0-patched
+VERSION=2.23.0.1-patched
 PLATFORMS=linux/amd64,linux/arm64
 BUILDER=securebridge
 build:

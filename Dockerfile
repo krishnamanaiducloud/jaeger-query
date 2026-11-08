@@ -38,17 +38,25 @@ RUN --mount=type=cache,id=jaeger-go-mod,target=/root/go/pkg/mod,sharing=locked \
     && date="$(TZ=UTC0 git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format='%cd' "${JAEGER_COMMIT}")" \
     && GOOS="${TARGETOS}" GOARCH="${TARGETARCH}" go build -trimpath -buildvcs=false \
       -ldflags "-s -w -buildid= -X ${v}.commitSHA=${JAEGER_COMMIT} -X ${v}.latestVersion=v${JAEGER_VERSION} -X ${v}.date=${date}" \
-      -o /out/jaeger ./cmd/jaeger
+      -o /out/jaeger ./cmd/jaeger \
+    && mkdir -p /out/cmd/jaeger \
+    && mv /out/jaeger /out/cmd/jaeger/jaeger \
+    && ln -s jaeger /out/cmd/jaeger/jaeger-linux \
+    && cp cmd/jaeger/config-ui.json cmd/jaeger/sampling-strategies.json /out/cmd/jaeger/ \
+    && chmod 0555 /out/cmd/jaeger/jaeger \
+    && chmod 0444 /out/cmd/jaeger/config-ui.json /out/cmd/jaeger/sampling-strategies.json
 
 FROM ${RUNTIME_IMAGE}
 ARG JAEGER_VERSION=2.23.0
-LABEL org.opencontainers.image.version="${JAEGER_VERSION}-patched" \
+ARG IMAGE_VERSION=2.23.0.1-patched
+LABEL org.opencontainers.image.version="${IMAGE_VERSION}" \
       org.opencontainers.image.source="https://github.com/jaegertracing/jaeger" \
       org.opencontainers.image.licenses="Apache-2.0"
 ENV JAEGER_LISTEN_HOST=0.0.0.0
 WORKDIR /cmd/jaeger
-COPY --from=build --chown=10001:0 --chmod=0555 /out/jaeger /cmd/jaeger/jaeger
-COPY --from=build --chown=10001:0 --chmod=0444 /src/cmd/jaeger/config-ui.json /cmd/jaeger/config-ui.json
+# Same layout as the official jaegertracing/jaeger image: /cmd/jaeger/jaeger-linux (a link to the
+# binary, for manifests that set it as the command) and the default sampling-strategies.json.
+COPY --from=build --chown=10001:0 /out/cmd/jaeger/ /cmd/jaeger/
 COPY --chown=10001:0 --chmod=0444 config.yaml /cmd/jaeger/config.yaml
 USER 10001:0
 EXPOSE 4317 4318 14250 14268 16686 8888 13133

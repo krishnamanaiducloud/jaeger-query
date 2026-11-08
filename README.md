@@ -1,10 +1,12 @@
 # Jaeger v2 query service hardened source build
 
-Jaeger 2.23.0 rebuilt from verified upstream source with its UI assets and placed in a shell-less Chainguard static runtime. Published as `mohankrishna999/jaeger-query:2.23.0-patched` for amd64 and arm64.
+Jaeger 2.23.0 rebuilt from verified upstream source with its UI assets and placed in a shell-less Chainguard static runtime. Published as `mohankrishna999/jaeger-query:2.23.0.1-patched` for amd64 and arm64.
+
+`2.23.0.1-patched` adds the official image's file layout, for drop-in use in place of `jaegertracing/jaeger:2.23.0` (also published as `quay.io/jaegertracing/jaeger:2.23.0`, the same image): `/cmd/jaeger/jaeger-linux` runs the binary, for manifests that set it as the command, and `/cmd/jaeger/sampling-strategies.json` is the default sampling strategies file. The service itself is unchanged from `2.23.0-patched`. One difference remains by design: without arguments the official image starts its built-in all-in-one configuration with in-memory storage, while this image starts `/cmd/jaeger/config.yaml` (Elasticsearch). Pass `--config` to choose the configuration, as with the official image.
 
 Upstream 2.23.0 ships three Go modules with known vulnerabilities. `build/patch-modules.sh` raises them before the build, and the build fails if a pin does not apply:
 
-| Module | Upstream 2.23.0 | `2.23.0-patched` |
+| Module | Upstream 2.23.0 | `2.23.0.1-patched` |
 |---|---|---|
 | `github.com/andybalholm/brotli` | 1.2.2 | 1.2.8 |
 | `golang.org/x/crypto` | 0.58.0 | `v0.58.1-0.20261009181718-2f1f834330b2`, the upstream fix for GO-2026-5932 (no tagged release yet) |
