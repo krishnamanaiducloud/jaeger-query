@@ -1,0 +1,53 @@
+diff --git a/cmd/query/app/apiv3/http_gateway.go b/cmd/query/app/apiv3/http_gateway.go
+index e606139d..e69d9918 100644
+--- a/cmd/query/app/apiv3/http_gateway.go
++++ b/cmd/query/app/apiv3/http_gateway.go
+@@ -15,7 +15,6 @@ import (
+ 	"github.com/gogo/protobuf/proto"
+ 	"github.com/gorilla/mux"
+ 	"go.opentelemetry.io/collector/pdata/ptrace"
+-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+ 	"go.opentelemetry.io/otel/trace"
+ 	"go.uber.org/zap"
+ 
+@@ -73,7 +72,6 @@ func (*HTTPGateway) addRoute(
+ 	_ ...any, /* args */
+ ) *mux.Route {
+ 	var handler http.Handler = http.HandlerFunc(f)
+-	handler = otelhttp.WithRouteTag(route, handler)
+ 	handler = spanNameHandler(route, handler)
+ 	return router.HandleFunc(route, handler.ServeHTTP)
+ }
+diff --git a/cmd/query/app/query_parser_test.go b/cmd/query/app/query_parser_test.go
+index 66f227fd..0749732f 100644
+--- a/cmd/query/app/query_parser_test.go
++++ b/cmd/query/app/query_parser_test.go
+@@ -54,7 +54,7 @@ func TestParseTraceQuery(t *testing.T) {
+ 			},
+ 		},
+ 		// tags=JSON with a non-string value 123
+-		{`x?service=service&start=0&end=0&operation=operation&limit=200&tag=k:v&tags={"x":123}`, "malformed 'tags' parameter, cannot unmarshal JSON: json: cannot unmarshal number into Go value of type string", nil},
++		{`x?service=service&start=0&end=0&operation=operation&limit=200&tag=k:v&tags={"x":123}`, "malformed 'tags' parameter, cannot unmarshal JSON: json: cannot unmarshal number into Go struct field .x of type string", nil},
+ 		// tags=JSON
+ 		{
+ 			`x?service=service&start=0&end=0&operation=operation&limit=200&tag=k:v&tags={"x":"y"}`, noErr,
+diff --git a/cmd/query/app/http_handler.go b/cmd/query/app/http_handler.go
+index 7cbe641a..4b976d4c 100644
+--- a/cmd/query/app/http_handler.go
++++ b/cmd/query/app/http_handler.go
+@@ -17,7 +17,6 @@ import (
+ 
+ 	"github.com/gogo/protobuf/proto"
+ 	"github.com/gorilla/mux"
+-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+ 	"go.opentelemetry.io/otel/trace"
+ 	"go.uber.org/zap"
+ 
+@@ -131,7 +130,6 @@ func (aH *APIHandler) addRoute(
+ ) *mux.Route {
+ 	route := aH.formatRoute(routeFmt, args...)
+ 	var handler http.Handler = http.HandlerFunc(f)
+-	handler = otelhttp.WithRouteTag(route, handler)
+ 	handler = spanNameHandler(route, handler)
+ 	return router.HandleFunc(route, handler.ServeHTTP)
+ }

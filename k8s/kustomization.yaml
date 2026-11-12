@@ -5,5 +5,5 @@ resources:
   - service.yaml
 images:
   - name: docker.io/mohankrishna999/jaeger-query
-    newTag: 2.23.0.1-patched
+    newTag: 1.65.0.1-patched
 

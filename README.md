@@ -1,26 +1,34 @@
-# Jaeger v2 query service hardened source build
+# Jaeger v1 query service hardened compatibility build
 
-Jaeger 2.23.0 rebuilt from verified upstream source with its UI assets and placed in a shell-less Chainguard static runtime. Published as `mohankrishna999/jaeger-query:2.23.0.1-patched` for amd64 and arm64.
+This repository builds Jaeger Query **v1.65.0** for deployments managed by the legacy
+Jaeger Operator and `jaegertracing.io/v1` custom resources. It intentionally does not
+contain a Jaeger v2 binary.
 
-`2.23.0.1-patched` adds the official image's file layout, for drop-in use in place of `jaegertracing/jaeger:2.23.0` (also published as `quay.io/jaegertracing/jaeger:2.23.0`, the same image): `/cmd/jaeger/jaeger-linux` runs the binary, for manifests that set it as the command, and `/cmd/jaeger/sampling-strategies.json` is the default sampling strategies file. The service itself is unchanged from `2.23.0-patched`. One difference remains by design: without arguments the official image starts its built-in all-in-one configuration with in-memory storage, while this image starts `/cmd/jaeger/config.yaml` (Elasticsearch). Pass `--config` to choose the configuration, as with the official image.
+The immutable image tag is `mohankrishna999/jaeger-query:1.65.0.1-patched`. It preserves
+the official v1 runtime contract:
 
-Upstream 2.23.0 ships three Go modules with known vulnerabilities. `build/patch-modules.sh` raises them before the build, and the build fails if a pin does not apply:
+- entrypoint `/go/bin/query-linux`;
+- Jaeger v1 flags such as `--es.server-urls` and `--query.http.tls.cert`;
+- ports 16685 (gRPC), 16686 (HTTP/UI), and 16687 (admin/health/metrics);
+- non-root execution with primary GID 0 for OpenShift arbitrary-UID compatibility;
+- embedded Jaeger UI and the system CA trust bundle.
 
-| Module | Upstream 2.23.0 | `2.23.0.1-patched` |
-|---|---|---|
-| `github.com/andybalholm/brotli` | 1.2.2 | 1.2.8 |
-| `golang.org/x/crypto` | 0.58.0 | `v0.58.1-0.20261009181718-2f1f834330b2`, the upstream fix for GO-2026-5932 (no tagged release yet) |
-| `golang.org/x/net` | 0.61.0 | 0.62.0 |
+The source is pinned to Jaeger v1.65.0 commit
+`b3be0117dc69484a47addb38aa18f599315622da`. Vulnerable Go dependencies are upgraded in
+the build stage, component tests run before compilation, and the final static image does
+not contain a shell or package manager.
 
-The default configuration uses Elasticsearch at `ES_SERVER_URL` (default `http://elasticsearch:9200`). Mount a complete Jaeger v2 configuration over `/cmd/jaeger/config.yaml` for another storage backend.
+## Verification
 
-Three fixes in this release:
+```sh
+make compatibility
+make scan
+make sbom
+```
 
-- The health check in `config.yaml` binds `0.0.0.0:13133` explicitly. Without an endpoint Jaeger 2.23 serves it on localhost only, so the kubelet probes failed. The UI and API on 16686 already listen on all interfaces.
-- `config.yaml` lists the Elasticsearch URL as a YAML block sequence (`server_urls:` followed by `- ${env:ES_SERVER_URL:-http://elasticsearch:9200}`). Jaeger 2.23 rejects the previous one-line form, `server_urls: [${env:...}]`, at startup (`did not find expected ',' or ']'`), because `{` is a flow indicator inside `[...]`. Write your own configurations the same way.
-- `jaeger version` reports `v2.23.0`, the release commit and its date, as the official build does. The build now sets them in `internal/version`, where Jaeger 2.23 reads them; before, the binary reported `dev`.
+`tests/verify-cli-contract.sh` fails if the binary changes to v2, loses an Operator-used
+flag, cannot load TLS certificates, cannot start with an OpenShift-style random UID and a
+read-only root filesystem, or fails to serve the query API.
 
-Verified side by side with the official `jaegertracing/jaeger:2.23.0` image running the same configuration on Elasticsearch 8.19: both query services listed the same services and operations, returned the same traces and found them by search, and the trace page renders without errors at 1440px and 390px. Trivy 0.76.2 and Grype 0.121.1 report no findings.
-
-The image runs as UID 10001 with GID 0 and the included manifests satisfy Kubernetes restricted Pod Security and OpenShift restricted SCC requirements.
-
+Jaeger v1 reached end of life on December 31, 2025. This build repairs the existing v1
+deployment contract; it is not a substitute for a separately approved Jaeger v2 migration.

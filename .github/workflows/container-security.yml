@@ -14,12 +14,37 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7.0.1
-      - name: Build and smoke test
-        run: make smoke
+      - name: Lint Dockerfile
+        run: docker run --rm -i hadolint/hadolint:v2.14.0-debian < Dockerfile
+      - name: Scan repository secrets
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '1'
+      - name: Report repository misconfigurations
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.2
+          scan-type: config
+          scan-ref: .
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: '0'
+      - name: Render and validate Kubernetes examples
+        run: |
+          mkdir -p ci-artifacts
+          docker run --rm -v "$PWD:/work" registry.k8s.io/kubectl:v1.34.2 kustomize /work/k8s > ci-artifacts/rendered.yaml
+          docker run --rm -i ghcr.io/yannh/kubeconform:v0.7.0 -strict -summary < ci-artifacts/rendered.yaml
+      - name: Build and verify Jaeger v1 CLI contract
+        run: make compatibility
       - name: Trivy scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: mohankrishna999/jaeger-query:2.23.0.1-patched
+          version: v0.76.2
+          image-ref: mohankrishna999/jaeger-query:1.65.0.1-patched
           scanners: vuln
           vuln-type: os,library
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
@@ -28,7 +53,16 @@ jobs:
       - name: Grype scan
         uses: anchore/scan-action@v7
         with:
-          image: mohankrishna999/jaeger-query:2.23.0.1-patched
+          image: mohankrishna999/jaeger-query:1.65.0.1-patched
           fail-build: true
           severity-cutoff: negligible
+      - name: Generate CycloneDX SBOM
+        run: |
+          mkdir -p ci-artifacts
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock anchore/syft:v1.57.1 docker:mohankrishna999/jaeger-query:1.65.0.1-patched -o cyclonedx-json > ci-artifacts/jaeger-query.cdx.json
+      - name: Upload validation evidence
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: jaeger-query-validation
+          path: ci-artifacts/
 
