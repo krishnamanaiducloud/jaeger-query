@@ -163,8 +163,9 @@ explicitly authorizes a direct patch.
 - The actual chart and cluster tests listed above are mandatory release blockers.
 - Elasticsearch version, credentials, CA chain, index mappings, and TLS behavior have not
   been tested against the real service.
-- Only Linux/amd64 was locally loaded and executed. The push target is multi-architecture,
-  but Linux/arm64 must pass CI on native or emulated runners before publication.
+- Linux/amd64 was loaded and executed. Linux/arm64 cross-compilation succeeded and its
+  manifest was published, but it was not executed on a native or emulated arm64 runtime;
+  that runtime test is required before production use on arm64 clusters.
 - Image signing is blocked until the target registry and signing identity are provided.
 - Trivy's generic configuration policy reports the intentionally unset namespace,
   arbitrary OpenShift UID/GID, pre-promotion Docker Hub image, and absent Dockerfile
